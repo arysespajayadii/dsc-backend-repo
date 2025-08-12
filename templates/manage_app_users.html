@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Manajemen Pengguna Aplikasi{% endblock %}
+
+{% block content %}
+    <hgroup>
+        <h2>Manajemen Pengguna Aplikasi</h2>
+        <h3>Kelola semua akun yang terdaftar di aplikasi mobile.</h3>
+    </hgroup>
+
+    <div class="grid">
+        <article>
+            <h4>Pengguna Belum Log Hari Ini</h4>
+            {% if users_not_logged_today %}
+            <ul>
+                {% for user in users_not_logged_today %}
+                <li>{{ user.username }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>Semua pengguna sudah mencatat aktivitas hari ini. Luar biasa!</p>
+            {% endif %}
+        </article>
+        
+        <article>
+            <h4>Reset Password Pengguna</h4>
+            <form method="POST" action=""> <label for="user_select">Pilih Pengguna</label>
+                <select id="user_select" name="user_id" required>
+                    <option value="" disabled selected>Pilih seorang pengguna...</option>
+                    {% for user in all_users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+                <label for="new_password">Password Baru</label>
+                <input type="password" name="new_password" placeholder="Masukkan password baru" required>
+                <button type="submit">Reset Password</button>
+            </form>
+        </article>
+    </div>
+
+    <hr>
+
+    <h4>Semua Pengguna Terdaftar</h4>
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Poin</th>
+                    <th>Tanggal Bergabung</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in all_users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.points }}</td>
+                    <td>{{ user.created_at.strftime('%d %B %Y') }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">Belum ada pengguna yang terdaftar.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+
+    <script>
+        document.getElementById('user_select').addEventListener('change', function() {
+            var userId = this.value;
+            var form = this.closest('form');
+            if (userId) {
+                form.action = '/admin/app-users/reset-password/' + userId;
+            } else {
+                form.action = '';
+            }
+        });
+    </script>
+{% endblock %}

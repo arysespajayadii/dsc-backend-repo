@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Jawab Pertanyaan{% endblock %}
+
+{% block content %}
+    <h2>Jawab Pertanyaan</h2>
+    <article>
+        <p><strong>Dari Pengguna ID:</strong> {{ question.user_id }}</p>
+        <p><strong>Tanggal Tanya:</strong> {{ question.created_at.strftime('%d %B %Y') }}</p>
+        <p><strong>Pertanyaan:</strong><br>{{ question.question_text }}</p>
+    </article>
+
+    <form method="POST">
+        <label for="answer_text"><h3>Tulis Jawaban Anda:</h3></label>
+        <textarea id="answer_text" name="answer_text" required></textarea>
+        <button type="submit">Kirim Jawaban</button>
+    </form>
+{% endblock %}

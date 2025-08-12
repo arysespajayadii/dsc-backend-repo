@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <title>{{ content.title if content else 'Digital Stunting Care' }}</title>
+    <style>
+        [data-theme="light"], :root:not([data-theme="dark"]) {
+            --pico-primary: #e91e63;
+            --pico-primary-hover: #c2185b;
+            --pico-primary-focus: rgba(233, 30, 99, 0.25);
+            --pico-primary-inverse: #FFF;
+        }
+        .hero {
+            text-align: center;
+            padding: 4rem 1rem;
+            background-color: var(--pico-muted-background-color);
+        }
+        .features .grid {
+            grid-gap: 2rem;
+        }
+        .features article {
+            text-align: center;
+        }
+        .features h3 {
+            margin-top: 0;
+        }
+        /* --- TAMBAHKAN CLASS INI --- */
+        .text-primary {
+            color: var(--pico-primary);
+        }
+    </style>
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><strong>📱 Digital Stunting Care</strong></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <hgroup>
+                <h1 class="text-primary">{{ content.title if content else 'Selamat Datang!' }}</h1>
+                <h2>Aplikasi Pencegahan Stunting Berbasis Komunitas.</h2>
+            </hgroup>
+            <a href="https://wa.me/628123456789" role="button">Hubungi Kami</a>
+        </div>
+    </section>
+
+    <main class="container features" style="padding: 4rem 1rem;">
+        <div class="grid">
+            {{ markdown_content|safe }}
+        </div>
+    </main>
+
+    <footer class="container" style="text-align: center;">
+        <small>© 2025 Digital Stunting Care</small>
+    </footer>
+</body>
+</html>

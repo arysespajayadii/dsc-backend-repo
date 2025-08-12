@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <title>{% block title %}Dashboard{% endblock %}</title>
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><strong>DSC</strong></li>
+            </ul>
+            <ul>
+                <li><a href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+                {% if session.admin_role == 'superadmin' %}
+                <li><a href="{{ url_for('manage_articles') }}">Kelola Artikel Edukasi</a></li>
+                <li><a href="{{ url_for('edit_homepage') }}">Edit Halaman Utama</a></li>
+                <li> <a href="{{ url_for('manage_users') }}">Kelola User Admin/Ahli</a></li>
+                <li><a href="{{ url_for('manage_app_users') }}">Kelola Pengguna Aplikasi</a></li>
+                {% endif %}
+                <li><a href="{{ url_for('admin_logout') }}" role="button" class="secondary">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <article>
+              {{ messages[0] }}
+            </article>
+          {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container" style="text-align: center; margin-top: 5rem;">
+        <small>© 2025 Digital Stunting Care (DSC)</small>
+    </footer>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</body>
+</html>

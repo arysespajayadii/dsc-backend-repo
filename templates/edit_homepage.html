@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Halaman Utama{% endblock %}
+
+{% block content %}
+    <h2>Edit Konten Halaman Utama</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <label for="title">Judul Utama</label>
+        <input type="text" id="title" name="title" value="{{ content.title if content else '' }}" required>
+
+        <label for="content">Teks Konten (Gunakan Format Markdown)</label>
+        <textarea id="content" name="content" required>{{ content.content if content else '' }}</textarea>
+          <small>
+              Gunakan `## Judul Kartu` untuk judul fitur dan baris baru untuk deskripsinya.
+              <a href="https://www.markdownguide.org/cheat-sheet/" target="_blank">Lihat Panduan Markdown</a>
+          </small>
+
+        <label for="image_file">Unggah Gambar Banner (Opsional)</label>
+        <input type="file" id="image_file" name="image_file" accept="image/*">
+        {% if content and content.image_filename %}
+          <p><small>Gambar saat ini: {{ content.image_filename }}</small></p>
+        {% endif %}
+
+        <button type="submit">Simpan Perubahan</button>
+    </form>
+{% endblock %}

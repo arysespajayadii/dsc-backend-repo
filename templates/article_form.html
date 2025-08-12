@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+    <h2>{{ form_title }}</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <label for="title">Judul Artikel</label>
+        <input type="text" id="title" name="title" value="{{ article.title if article else '' }}" required>
+
+        <label for="content">Isi Konten</label>
+        <textarea id="content" name="content" required>{{ article.content if article else '' }}</textarea>
+        
+        <label for="image_file">Unggah Gambar (Opsional)</label>
+        <input type="file" id="image_file" name="image_file" accept="image/*">
+        {% if article and article.image_filename %}
+          <p><small>Gambar saat ini: {{ article.image_filename }}</small></p>
+        {% endif %}
+        
+        <label for="video_url">URL Video YouTube (Opsional)</label>
+        <input type="text" id="video_url" name="video_url" value="{{ article.video_url if article else '' }}" placeholder="Contoh: https://t0.gstatic.com/faviconV2?url=https://www.youtube.com/&client=BARD&type=FAVICON&size=256&fallback_opts=TYPE,SIZE,URL">
+        
+        <button type="submit">Simpan Artikel</button>
+    </form>
+{% endblock %}

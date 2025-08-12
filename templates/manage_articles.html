@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Manajemen Artikel{% endblock %}
+
+{% block content %}
+    <hgroup>
+        <h2>Manajemen Artikel Edukasi</h2>
+        <h3>Kelola semua artikel yang tampil di aplikasi.</h3>
+    </hgroup>
+    <a href="{{ url_for('new_article_form') }}" role="button">Buat Artikel Baru</a>
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Judul</th>
+                    <th>Isi Konten</th>
+                    <th>Gambar</th>
+                    <th>Video</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for article in articles %}
+                <tr>
+                    <td>{{ article.title }}</td>
+                    <td>{{ article.content }}</td>
+                    <td>{{ article.image_filename }}</td>
+                    <td>{{ article.video_url }}</td>                    
+                    <td>
+                        <a href="{{ url_for('edit_article_form', article_id=article.id) }}" role="button"> Edit </a>
+                        <form action="{{ url_for('delete_article', article_id=article.id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin?');" style="display: inline;">
+                            <button type="submit" class="outline">Hapus</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+{% endblock %}

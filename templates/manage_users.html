@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Manajemen User{% endblock %}
+
+{% block content %}
+    <div x-data="{ openModal: '' }">
+        <div class="grid">
+            <article>
+                <hgroup>
+                    <h2>Buat Akun Baru</h2>
+                    <h3>Membuat akun untuk Ahli atau Admin lain.</h3>
+                </hgroup>
+                <form method="POST">
+                    <input type="text" name="username" placeholder="Username Baru" required>
+                    <input type="password" name="password" placeholder="Password Baru" required>
+                    <select name="role">
+                        <option value="ahli" selected>Ahli Gizi</option>
+                        <option value="superadmin">Super Admin</option>
+                    </select>
+                    <button type="submit">Buat Akun</button>
+                </form>
+            </article>
+            <article>
+                <hgroup>
+                    <h2>Daftar Akun</h2>
+                    <h3>Semua akun yang terdaftar.</h3>
+                </hgroup>
+                <figure>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.role }}</td>
+                                <td>
+                                    <button class="outline" @click="openModal = 'modal-user-{{ user.id }}'; $nextTick(() => document.getElementById('modal-user-{{ user.id }}').showModal())">
+                                        Reset Password
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </figure>
+            </article>
+        </div>
+
+        {% for user in users %}
+        <dialog id="modal-user-{{ user.id }}">
+            <article>
+                <header>
+                    <button class="close" aria-label="Close" @click="document.getElementById('modal-user-{{ user.id }}').close(); openModal = ''"></button>
+                    <p><strong>Reset Password untuk {{ user.username }}</strong></p>
+                </header>
+                <form action="{{ url_for('reset_admin_password', admin_id=user.id) }}" method="POST">
+                    <label for="new_password-{{ user.id }}">Password Baru</label>
+                    <input type="password" id="new_password-{{ user.id }}" name="new_password" placeholder="Masukkan password baru (min. 6 karakter)" required>
+                    <button type="submit">Simpan Password Baru</button>
+                </form>
+            </article>
+        </dialog>
+        {% endfor %}
+    </div>
+{% endblock %}

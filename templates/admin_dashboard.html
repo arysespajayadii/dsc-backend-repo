@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Utama{% endblock %}
+
+{% block content %}
+    <h2>Selamat Datang, {{ session.username }}</h2>
+    <p>Ini adalah dashboard utama.</p>      
+    
+    <h2>Pertanyaan Belum Dijawab</h2>
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tanggal Tanya</th>
+                    <th>Teks Pertanyaan</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for q in questions %}
+                <tr>
+                    <td>{{ q.id }}</td>
+                    <td>{{ q.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ q.question_text }}</td>
+                    <td><a href="{{ url_for('answer_question', question_id=q.id) }}">Jawab</a></td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">Tidak ada pertanyaan yang belum dijawab saat ini.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+{% endblock %}
