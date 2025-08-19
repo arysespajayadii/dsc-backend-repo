@@ -15,8 +15,8 @@ from sqlalchemy import func
 
 # --- KONFIGURASI APLIKASI ---
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'bimaAPPDSC' 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/dsc_prod_db'
+app.config['SECRET_KEY'] = '' 
+app.config['SQLALCHEMY_DATABASE_URI'] = ''
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
 
