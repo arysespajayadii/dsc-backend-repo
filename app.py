@@ -15,8 +15,8 @@ from sqlalchemy import func
 
 # --- KONFIGURASI APLIKASI ---
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '' 
-app.config['SQLALCHEMY_DATABASE_URI'] = ''
+app.config['SECRET_KEY'] = 'bimaAPPDSC' 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/dsc_prod_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
 
@@ -324,26 +324,6 @@ def add_log():
             
     db.session.commit()
     return jsonify({"msg": message}), status_code
-
-@app.route('/schedule/ttd', methods=['GET'])
-@jwt_required()
-def get_ttd_schedule():
-    current_user_id = get_jwt_identity()
-    user = RemajaPutri.query.get(int(current_user_id))
-    return jsonify({'jadwal_ttd': user.jadwal_ttd})
-
-@app.route('/schedule/ttd', methods=['POST'])
-@jwt_required()
-def update_ttd_schedule():
-    current_user_id = get_jwt_identity()
-    user = RemajaPutri.query.get(int(current_user_id))
-    data = request.get_json()
-    new_schedule = data.get('jadwal_ttd') # Diharapkan string seperti "0,3,5"
-    if new_schedule is not None:
-        user.jadwal_ttd = new_schedule
-        db.session.commit()
-        return jsonify({"msg": "Jadwal berhasil diperbarui."}), 200
-    return jsonify({"msg": "Data jadwal tidak valid."}), 400
 
 @app.route('/logs', methods=['GET'])
 @jwt_required()
