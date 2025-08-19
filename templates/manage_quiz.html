@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Kelola Kuis untuk: {{ article.title }}{% endblock %}
+{% block content %}
+<hgroup>
+    <h2>Kelola Kuis</h2>
+    <h3>Untuk Artikel: "{{ article.title }}"</h3>
+</hgroup>
+
+{% for question in quiz.questions %}
+<article>
+    <form action="{{ url_for('update_quiz_choices', question_id=question.id) }}" method="POST">
+        <label><strong>Pertanyaan {{ loop.index }}: {{ question.question_text }}</strong></label>
+        <fieldset>
+            {% for choice in question.choices %}
+            <label>
+                <input type="radio" name="is_correct" value="{{ choice.id }}" {% if choice.is_correct %}checked{% endif %}>
+                Jawaban Benar
+            </label>
+            <input type="text" name="choice_text_{{ choice.id }}" value="{{ choice.choice_text }}" placeholder="Tulis pilihan jawaban di sini">
+            {% endfor %}
+        </fieldset>
+        <button type="submit">Simpan Perubahan Jawaban</button>
+    </form>
+</article>
+{% endfor %}
+
+<article>
+    <h4>Tambah Pertanyaan Baru</h4>
+    <form action="{{ url_for('add_quiz_question', quiz_id=quiz.id) }}" method="POST">
+        <input type="text" name="question_text" placeholder="Tulis pertanyaan baru di sini" required>
+        <button type="submit">Tambah Pertanyaan</button>
+    </form>
+</article>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Laporan Aplikasi{% endblock %}
+{% block content %}
+    <hgroup>
+        <h2>Laporan Aplikasi</h2>
+        <h3>Ringkasan data penting dari aktivitas pengguna.</h3>
+    </hgroup>
+
+    <div class="grid">
+        <article>
+            <h4>Total Pengguna Terdaftar</h4>
+            <h1>{{ total_users }}</h1>
+        </article>
+        <article>
+            <h4>Kepatuhan TTD (30 Hari Terakhir)</h4>
+            <ul>
+                <li><strong>Diminum:</strong> {{ ttd_compliance.get('Diminum', 0) }} kali</li>
+                <li><strong>Lupa:</strong> {{ ttd_compliance.get('Lupa', 0) }} kali</li>
+                <li><strong>Ditunda:</strong> {{ ttd_compliance.get('Ditunda', 0) }} kali</li>
+            </ul>
+        </article>
+    </div>
+
+    <h4>Performa Kuis (Rata-rata Skor)</h4>
+    <figure>
+        <table>
+            <thead>
+                <tr><th>Nama Artikel Kuis</th><th>Rata-rata Skor</th></tr>
+            </thead>
+            <tbody>
+                {% for quiz in quiz_performance %}
+                <tr>
+                    <td>{{ quiz.title }}</td>
+                    <td>{{ "%.2f"|format(quiz.avg_score) }}%</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2">Belum ada hasil kuis yang tercatat.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+{% endblock %}

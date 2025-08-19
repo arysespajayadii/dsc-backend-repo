@@ -7,8 +7,10 @@ from datetime import datetime
 from functools import wraps
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
+from scipy import stats, linalg
 import os
 import mistune
+from sqlalchemy import func
 
 
 # --- KONFIGURASI APLIKASI ---
@@ -53,6 +55,12 @@ class RemajaPutri(db.Model):
     points = db.Column(db.Integer, default=0) 
     fcm_token = db.Column(db.String(255), nullable=True, unique=True)
     profile_image_filename = db.Column(db.String(255), nullable=True)
+    # --- JADWAL MINUM TTD ---
+    # Menyimpan hari dalam seminggu (0=Senin, 1=Selasa, dst.)
+    # Disimpan sebagai string yang dipisahkan koma, misal: "0" atau "0,3"
+    jadwal_ttd = db.Column(db.String(20), default='0', nullable=False) # Default: Setiap Senin
+    tanggal_lahir = db.Column(db.Date, nullable=True) 
+    jenis_kelamin = db.Column(db.String(1), nullable=True) 
     logs = db.relationship('DailyLog', backref='pemilik', lazy=True)
 
     def __init__(self, username, password):
@@ -62,10 +70,22 @@ class RemajaPutri(db.Model):
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
 
+# Di app.py, ganti class DailyLog yang lama dengan ini:
+
 class DailyLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    tanggal = db.Column(db.Date, nullable=False) # Hapus default dari sini
-    minum_ttd = db.Column(db.Boolean, default=False)
+    tanggal = db.Column(db.Date, nullable=False)
+    # Kolom 'minum_ttd' tidak lagi diperlukan, digantikan oleh 'status'
+    # minum_ttd = db.Column(db.Boolean, default=False) 
+    
+    # --- KOLOM BARU ---
+    dosis = db.Column(db.String(50), nullable=True) # 
+    status = db.Column(db.String(50), default='Belum dicatat', nullable=False) # Contoh: 'Diminum', 'Lupa', 'Ditunda'
+    jam_konsumsi = db.Column(db.Time, nullable=True)
+    efek_samping = db.Column(db.Text, nullable=True)
+    alasan_lupa = db.Column(db.Text, nullable=True)
+    # ------------------
+
     catatan_makan = db.Column(db.String(200), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('remaja_putri.id'), nullable=False)
     
@@ -130,6 +150,67 @@ class ForumReply(db.Model):
     # Relasi untuk mendapatkan nama user
     user = db.relationship('RemajaPutri', backref='forum_replies')
     
+# Model untuk Log Asupan Gizi Harian
+class NutritionLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tanggal = db.Column(db.Date, nullable=False, unique=True) # Hanya satu log per hari
+    user_id = db.Column(db.Integer, db.ForeignKey('remaja_putri.id'), nullable=False)
+    
+    # Komponen "Piring Makanku"
+    karbohidrat = db.Column(db.Boolean, default=False)
+    lauk_hewani = db.Column(db.Boolean, default=False)
+    lauk_nabati = db.Column(db.Boolean, default=False)
+    sayur = db.Column(db.Boolean, default=False)
+    buah = db.Column(db.Boolean, default=False)
+    
+    # Komponen Tambahan
+    camilan_manis = db.Column(db.Integer, default=0) # Untuk menghitung berapa kali
+    minuman_manis = db.Column(db.Integer, default=0)
+    
+# Model untuk Skrining Kesehatan Berkala
+class HealthScreening(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('remaja_putri.id'), nullable=False)
+    tanggal_skrining = db.Column(db.Date, nullable=False)
+    
+    # Data Antropometri
+    berat_badan = db.Column(db.Float, nullable=True) # dalam kg
+    tinggi_badan = db.Column(db.Float, nullable=True) # dalam cm
+    imt = db.Column(db.Float, nullable=True) # Indeks Massa Tubuh (dihitung otomatis)
+    bmi_zscore = db.Column(db.Float, nullable=True)
+    
+    # Data Lainnya
+    kadar_hb = db.Column(db.Float, nullable=True) # dalam g/dL
+    riwayat_haid = db.Column(db.String(255), nullable=True) # Teks singkat
+
+# Model untuk menghubungkan Artikel dengan Kuis
+class Quiz(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    article_id = db.Column(db.Integer, db.ForeignKey('article.id'), unique=True, nullable=False)
+    questions = db.relationship('QuizQuestion', backref='quiz', lazy=True, cascade="all, delete-orphan")
+
+# Model untuk satu pertanyaan dalam sebuah kuis
+class QuizQuestion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
+    question_text = db.Column(db.String(500), nullable=False)
+    choices = db.relationship('QuizChoice', backref='question', lazy=True, cascade="all, delete-orphan")
+
+# Model untuk pilihan jawaban dalam sebuah pertanyaan
+class QuizChoice(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('quiz_question.id'), nullable=False)
+    choice_text = db.Column(db.String(200), nullable=False)
+    is_correct = db.Column(db.Boolean, default=False, nullable=False)
+
+# Model untuk mencatat hasil kuis pengguna
+class UserQuizAttempt(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('remaja_putri.id'), nullable=False)
+    quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
+    score = db.Column(db.Integer, nullable=False) # Skor (misal: 80, 100)
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
 # --- Level akun flutter ---
 def get_user_level(points):
     """Menentukan level dan gelar pengguna berdasarkan poin."""
@@ -189,47 +270,80 @@ def add_log():
     current_user_id = get_jwt_identity()
     data = request.get_json()
     today_date = datetime.utcnow().date()
-
     user = RemajaPutri.query.get(int(current_user_id))
     if not user:
         return jsonify({"msg": "Pengguna tidak ditemukan."}), 404
 
+    # Ambil semua data baru dari request
+    status = data.get('status')
+    efek_samping = data.get('efek_samping')
+    alasan_lupa = data.get('alasan_lupa')
+    dosis = data.get('dosis')
+    
+    # Ambil dan konversi jam_konsumsi jika ada
+    jam_konsumsi_str = data.get('jam_konsumsi')
+    jam_konsumsi = None
+    if jam_konsumsi_str:
+        try:
+            jam_konsumsi = datetime.strptime(jam_konsumsi_str, '%H:%M').time()
+        except ValueError:
+            # Abaikan jika formatnya salah
+            pass
+
     today_log = DailyLog.query.filter_by(user_id=user.id, tanggal=today_date).first()
+
     if today_log:
-        today_log.minum_ttd = data.get('minum_ttd', False)
+        # --- LOGIKA UPDATE ---
+        today_log.status = status
+        today_log.jam_konsumsi = jam_konsumsi
+        today_log.efek_samping = efek_samping
+        today_log.alasan_lupa = alasan_lupa
+        today_log.dosis = dosis 
         message = "Log hari ini berhasil diperbarui."
         status_code = 200
     else:
-        # --- PERBAIKAN LOGIKA LENCANA DI SINI ---
-        # 1. Hitung jumlah log SEBELUM menambahkan yang baru
-        log_count_before = DailyLog.query.filter_by(user_id=user.id).count()
-
-        # 2. Buat dan tambahkan log baru ke session
+        # --- LOGIKA CREATE ---
         new_log = DailyLog(
             tanggal=today_date,
-            minum_ttd=data.get('minum_ttd', False),
-            catatan_makan=data.get('catatan_makan', ''),
+            status=status,
+            jam_konsumsi=jam_konsumsi,
+            efek_samping=efek_samping,
+            alasan_lupa=alasan_lupa,
+            dosis=dosis,
             user_id=user.id
         )
         db.session.add(new_log)
-
-        # Tambah poin
-        if user.points is None: user.points = 0
-        user.points += 10
-
-        # 3. Berikan lencana jika hitungan sebelumnya adalah 0
-        if log_count_before == 0:
-            badge_id_to_award = 1
-            has_badge = UserBadge.query.filter_by(user_id=user.id, badge_id=badge_id_to_award).first()
-            if not has_badge:
-                new_user_badge = UserBadge(user_id=user.id, badge_id=badge_id_to_award)
-                db.session.add(new_user_badge)
-
-        message = "Log berhasil ditambahkan dan Anda mendapatkan 10 poin!"
+        
+        # Poin hanya diberikan jika statusnya 'Diminum'
+        if status == 'Diminum':
+            if user.points is None: user.points = 0
+            user.points += 10
+        
+        message = "Log berhasil ditambahkan!"
         status_code = 201
-
+            
     db.session.commit()
     return jsonify({"msg": message}), status_code
+
+@app.route('/schedule/ttd', methods=['GET'])
+@jwt_required()
+def get_ttd_schedule():
+    current_user_id = get_jwt_identity()
+    user = RemajaPutri.query.get(int(current_user_id))
+    return jsonify({'jadwal_ttd': user.jadwal_ttd})
+
+@app.route('/schedule/ttd', methods=['POST'])
+@jwt_required()
+def update_ttd_schedule():
+    current_user_id = get_jwt_identity()
+    user = RemajaPutri.query.get(int(current_user_id))
+    data = request.get_json()
+    new_schedule = data.get('jadwal_ttd') # Diharapkan string seperti "0,3,5"
+    if new_schedule is not None:
+        user.jadwal_ttd = new_schedule
+        db.session.commit()
+        return jsonify({"msg": "Jadwal berhasil diperbarui."}), 200
+    return jsonify({"msg": "Data jadwal tidak valid."}), 400
 
 @app.route('/logs', methods=['GET'])
 @jwt_required()
@@ -252,6 +366,172 @@ def get_logs():
         import traceback
         traceback.print_exc()
         return jsonify({"msg": "Terjadi error internal saat mengambil data log"}), 500
+
+# Endpoint untuk mendapatkan atau membuat log gizi hari ini
+@app.route('/nutrition-log/today', methods=['GET'])
+@jwt_required()
+def get_today_nutrition_log():
+    current_user_id = get_jwt_identity()
+    today_date = datetime.utcnow().date()
+    
+    log = NutritionLog.query.filter_by(user_id=int(current_user_id), tanggal=today_date).first()
+    
+    if not log:
+        # Jika belum ada log hari ini, buat yang baru dengan nilai default
+        log = NutritionLog(user_id=int(current_user_id), tanggal=today_date)
+        db.session.add(log)
+        db.session.commit()
+        
+    return jsonify({
+        'karbohidrat': log.karbohidrat, 'lauk_hewani': log.lauk_hewani,
+        'lauk_nabati': log.lauk_nabati, 'sayur': log.sayur, 'buah': log.buah,
+        'camilan_manis': log.camilan_manis, 'minuman_manis': log.minuman_manis
+    })
+
+@app.route('/screening', methods=['POST'])
+@jwt_required()
+def add_screening():
+    current_user_id = get_jwt_identity()
+    user = RemajaPutri.query.get(int(current_user_id))
+    if not user:
+        return jsonify({"msg": "Pengguna tidak ditemukan"}), 404
+        
+    data = request.get_json()
+    berat_badan = data.get('berat_badan')
+    tinggi_badan = data.get('tinggi_badan')
+    imt = None
+    bmi_zscore = None
+    
+    if berat_badan and tinggi_badan and user.tanggal_lahir:
+        try:
+            berat = float(berat_badan)
+            tinggi_cm = float(tinggi_badan)
+            tinggi_m = tinggi_cm / 100
+            imt = round(berat / (tinggi_m * tinggi_m), 2)
+            
+            # Hitung umur dalam bulan
+            today = datetime.utcnow().date()
+            age_in_days = (today - user.tanggal_lahir).days
+            age_in_months = age_in_days / 30.4375
+            
+            # Hitung z-score (asumsi jenis kelamin 'P' untuk perempuan)
+            # Library pyzscore menggunakan indikator: 'bmi_for_age'
+            # Sex: 1 untuk laki-laki, 2 untuk perempuan
+            sex = 2 if user.jenis_kelamin == 'P' else 1
+            bmi_zscore = round(zscore.get_zscore(
+                indicator='bmi_for_age', 
+                measurement=imt, 
+                age_in_months=age_in_months, 
+                sex=sex
+            ), 2)
+
+        except Exception as e:
+            print(f"Error calculating z-score: {e}")
+            imt = None
+            bmi_zscore = None
+
+    new_screening = HealthScreening(
+        user_id=int(current_user_id),
+        tanggal_skrining=datetime.utcnow().date(),
+        berat_badan=berat_badan,
+        tinggi_badan=tinggi_badan,
+        imt=imt,
+        bmi_zscore=bmi_zscore,
+        kadar_hb=data.get('kadar_hb'),
+        riwayat_haid=data.get('riwayat_haid')
+    )
+    db.session.add(new_screening)
+    db.session.commit()
+    
+    return jsonify({"msg": "Data skrining berhasil disimpan!", "imt": imt, "zscore": bmi_zscore}), 201
+# Endpoint untuk mengambil riwayat skrining pengguna
+@app.route('/screening', methods=['GET'])
+@jwt_required()
+def get_screening_history():
+    current_user_id = get_jwt_identity()
+    history = HealthScreening.query.filter_by(user_id=int(current_user_id)).order_by(HealthScreening.tanggal_skrining.desc()).all()
+    
+    return jsonify([{
+        'tanggal_skrining': record.tanggal_skrining.strftime('%d %B %Y'),
+        'berat_badan': record.berat_badan,
+        'tinggi_badan': record.tinggi_badan,
+        'imt': record.imt,
+        'kadar_hb': record.kadar_hb,
+        'riwayat_haid': record.riwayat_haid
+    } for record in history])
+    
+# Endpoint untuk memperbarui log gizi hari ini
+@app.route('/nutrition-log/today', methods=['POST'])
+@jwt_required()
+def update_today_nutrition_log():
+    current_user_id = get_jwt_identity()
+    today_date = datetime.utcnow().date()
+    data = request.get_json()
+    
+    log = NutritionLog.query.filter_by(user_id=int(current_user_id), tanggal=today_date).first()
+    if not log:
+        return jsonify({"msg": "Log tidak ditemukan"}), 404
+        
+    # Perbarui semua field dari data yang dikirim
+    log.karbohidrat = data.get('karbohidrat', log.karbohidrat)
+    log.lauk_hewani = data.get('lauk_hewani', log.lauk_hewani)
+    log.lauk_nabati = data.get('lauk_nabati', log.lauk_nabati)
+    log.sayur = data.get('sayur', log.sayur)
+    log.buah = data.get('buah', log.buah)
+    log.camilan_manis = data.get('camilan_manis', log.camilan_manis)
+    log.minuman_manis = data.get('minuman_manis', log.minuman_manis)
+    
+    db.session.commit()
+    return jsonify({"msg": "Log gizi berhasil diperbarui"}), 200
+
+# Di app.py
+
+# Endpoint untuk mengambil data kuis berdasarkan ID artikel
+@app.route('/quiz/for-article/<int:article_id>', methods=['GET'])
+@jwt_required()
+def get_quiz_for_article(article_id):
+    quiz = Quiz.query.filter_by(article_id=article_id).first()
+    if not quiz:
+        return jsonify({"msg": "Tidak ada kuis untuk artikel ini"}), 404
+
+    questions_data = []
+    for q in quiz.questions:
+        choices_data = [{'id': c.id, 'text': c.choice_text} for c in q.choices]
+        questions_data.append({'id': q.id, 'text': q.question_text, 'choices': choices_data})
+
+    return jsonify({'quiz_id': quiz.id, 'questions': questions_data})
+
+# Endpoint untuk pengguna mengirimkan jawaban kuis
+@app.route('/quiz/submit/<int:quiz_id>', methods=['POST'])
+@jwt_required()
+def submit_quiz(quiz_id):
+    current_user_id = get_jwt_identity()
+    data = request.get_json() # Expected format: {'answers': { 'question_id': 'choice_id', ... }}
+    answers = data.get('answers', {})
+    
+    correct_answers = 0
+    total_questions = 0
+
+    for question_id, choice_id in answers.items():
+        total_questions += 1
+        choice = QuizChoice.query.get(int(choice_id))
+        if choice and choice.question_id == int(question_id) and choice.is_correct:
+            correct_answers += 1
+
+    score = 0
+    if total_questions > 0:
+        score = int((correct_answers / total_questions) * 100)
+
+    # Simpan hasil kuis
+    new_attempt = UserQuizAttempt(
+        user_id=int(current_user_id),
+        quiz_id=quiz_id,
+        score=score
+    )
+    db.session.add(new_attempt)
+    db.session.commit()
+
+    return jsonify({"msg": "Kuis berhasil diselesaikan!", "score": score})
 
 @app.route('/articles', methods=['GET'])
 @jwt_required()
@@ -672,6 +952,76 @@ def reset_admin_password(admin_id):
 
     flash(f"Password untuk '{admin_to_reset.username}' telah berhasil direset.")
     return redirect(url_for('manage_users'))
+
+# Di app.py, di dalam bagian Admin Routes
+
+# Halaman utama untuk mengelola kuis sebuah artikel
+@app.route('/admin/quiz/manage/<int:article_id>')
+@admin_login_required
+def manage_quiz(article_id):
+    article = Article.query.get_or_404(article_id)
+    # Cek apakah artikel sudah punya kuis, jika belum, buatkan
+    quiz = Quiz.query.filter_by(article_id=article.id).first()
+    if not quiz:
+        quiz = Quiz(article_id=article.id)
+        db.session.add(quiz)
+        db.session.commit()
+    return render_template('manage_quiz.html', article=article, quiz=quiz)
+
+# Endpoint untuk menambah pertanyaan baru ke kuis
+@app.route('/admin/question/add/<int:quiz_id>', methods=['POST'])
+@admin_login_required
+def add_quiz_question(quiz_id):
+    question_text = request.form.get('question_text')
+    if question_text:
+        new_question = QuizQuestion(quiz_id=quiz_id, question_text=question_text)
+        db.session.add(new_question)
+        db.session.commit()
+        # Tambahkan 4 pilihan jawaban kosong untuk pertanyaan baru ini
+        for _ in range(4):
+            db.session.add(QuizChoice(question_id=new_question.id, choice_text=""))
+        db.session.commit()
+    quiz = Quiz.query.get_or_404(quiz_id)
+    return redirect(url_for('manage_quiz', article_id=quiz.article_id))
+
+# Endpoint untuk menyimpan/mengupdate pilihan jawaban
+@app.route('/admin/choices/update/<int:question_id>', methods=['POST'])
+@admin_login_required
+def update_quiz_choices(question_id):
+    question = QuizQuestion.query.get_or_404(question_id)
+    correct_choice_id = request.form.get('is_correct')
+
+    for choice in question.choices:
+        choice.choice_text = request.form.get(f'choice_text_{choice.id}')
+        choice.is_correct = (str(choice.id) == correct_choice_id)
+    
+    db.session.commit()
+    return redirect(url_for('manage_quiz', article_id=question.quiz.article_id))
+
+@app.route('/admin/reports')
+@admin_login_required
+def reports():
+    # Laporan 1: Total Pengguna
+    total_users = RemajaPutri.query.count()
+
+    # Laporan 2: Kepatuhan TTD (30 hari terakhir)
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    ttd_compliance = db.session.query(
+        DailyLog.status, func.count(DailyLog.id)
+    ).filter(DailyLog.tanggal >= thirty_days_ago).group_by(DailyLog.status).all()
+    
+    # Laporan 3: Rata-rata Skor Kuis
+    quiz_performance = db.session.query(
+        Article.title, func.avg(UserQuizAttempt.score).label('avg_score')
+    ).join(Quiz, Quiz.article_id == Article.id).join(UserQuizAttempt, UserQuizAttempt.quiz_id == Quiz.id).group_by(Article.title).all()
+
+    return render_template(
+        'reports.html', 
+        total_users=total_users, 
+        ttd_compliance=dict(ttd_compliance),
+        quiz_performance=quiz_performance
+    )
+
 
 @app.route('/update-fcm-token', methods=['POST'])
 @jwt_required()
